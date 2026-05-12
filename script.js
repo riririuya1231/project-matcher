@@ -90,7 +90,7 @@ const products = [
     fit: "目标跨度大时，建议全程定制，避免听读输入和口写输出不同步导致总分上不去。"
   },
   {
-    id: "online-1v1-hourly",
+    id: "hourly-1v1",
     name: "紫藤雅思 1V1 加班课",
     type: "oneOnOne",
     delivery: ["online", "offline", "hybrid"],
@@ -122,8 +122,8 @@ const products = [
     format: "可线上/线下交付全科班课",
     cp: "CPB-078565",
     services: ["口语测评、写作精批各 12 次", "课后一辅导 8 次", "课前导学计划、结课复习计划各 1 套", "雅思核心词汇、口语题库+解析、写作高分范文资料"],
-    description: "适合基础 4.5 起、目标 5.5-6.0，需要线下课堂节奏和全科框架的学生。",
-    fit: "如果学生需要先把雅思方法体系搭起来，线下全能班比单补更适合。"
+    description: "适合基础 4.5 起、目标 5.5-6.0，需要课堂节奏和全科框架的学生。",
+    fit: "如果学生需要先把雅思方法体系搭起来，全能班比单补更适合。"
   },
   {
     id: "offline-all-65",
@@ -333,7 +333,7 @@ function getSubscoreDiagnosis(preferences) {
       mode: "unknown",
       weakSkills: [],
       skillKind: "mixed",
-      advice: "小分未填：先按全科方案讲，建议咨询时追问最近一次听说读写小分，再决定是否追加单项 1V1。"
+      advice: "小分未填：先按全科方案讲，咨询时追问最近一次听说读写小分，再决定是否追加单项 1V1。"
     };
   }
 
@@ -348,7 +348,7 @@ function getSubscoreDiagnosis(preferences) {
       mode: "balanced",
       weakSkills: [],
       skillKind: "mixed",
-      advice: `已填小分整体接近目标，建议按全科冲刺和模考反馈推进，1V1 主要用于考前纠错。`
+      advice: "已填小分整体接近目标，建议按全科冲刺和模考反馈推进，1V1 主要用于考前纠错。"
     };
   }
 
@@ -415,7 +415,7 @@ function scoreProduct(product, preferences, diagnosisResult) {
   if (preferences.currentScore >= product.scoreRange[0] && preferences.currentScore <= product.scoreRange[1]) score += 18;
   if (gap >= product.levelGap[0] && gap <= product.levelGap[1]) score += 18;
 
-  if (diagnosisResult.mode === "single" && product.id.includes("1v1")) score += 10;
+  if (diagnosisResult.mode === "single" && product.id === "hourly-1v1") score += 12;
   if (diagnosisResult.mode === "all" && (product.type === "combo" || product.name.includes("全能"))) score += 10;
   if (diagnosisResult.mode === "unknown" && product.type !== "oneOnOne") score += 6;
   if (gap >= 1 && product.type === "combo") score += 8;
@@ -428,7 +428,7 @@ function getServiceList(product) {
 }
 
 function getProductKind(product) {
-  if (product.id === "online-1v1-hourly") return "1V1 加班课";
+  if (product.id === "hourly-1v1") return "1V1 加班课";
   if (product.name.includes("飞跃")) return "飞跃计划（私教 1V1 + 督导）";
   if (product.name.includes("连报")) return "两阶段连报班课";
   if (product.type === "group") return product.delivery.includes("offline") ? "全科班课（可线上/线下交付）" : "线上班课";
@@ -436,11 +436,11 @@ function getProductKind(product) {
 }
 
 function choosePrerequisiteProduct(preferences, diagnosisResult, currentProduct) {
-  if (currentProduct.type !== "oneOnOne" || currentProduct.id !== "online-1v1-hourly") return currentProduct;
+  if (currentProduct.id !== "hourly-1v1") return currentProduct;
 
   const gap = getGap(preferences);
   const candidates = products
-    .filter((product) => product.id !== "online-1v1-hourly" && product.type !== "oneOnOne" && product.delivery.includes(preferences.delivery))
+    .filter((product) => product.id !== "hourly-1v1" && product.type !== "oneOnOne" && product.delivery.includes(preferences.delivery))
     .map((product) => ({ ...product, prerequisiteScore: scoreProduct(product, preferences, diagnosisResult) }))
     .sort((a, b) => {
       if (gap >= 1 && a.type !== b.type) return a.type === "combo" ? -1 : 1;
@@ -450,13 +450,17 @@ function choosePrerequisiteProduct(preferences, diagnosisResult, currentProduct)
   return candidates[0] || currentProduct;
 }
 
+function formatHourlyTierTable() {
+  return hourlyPriceTiers.map((tier) => `${tier.label}：${currency(tier.price)}/H`).join("；");
+}
+
 function buildLearningPath(product, preferences, diagnosisResult, oneOnOnePlan) {
   const prerequisite = choosePrerequisiteProduct(preferences, diagnosisResult, product);
   const targetAfter = prerequisite.targetAfter || `上完冲到 ${preferences.targetScore.toFixed(1)}`;
   const focus = oneOnOnePlan.focus;
   const oneOnOnePrice = `${oneOnOnePlan.hours}H × 最低 ${currency(oneOnOnePlan.hourlyLowest)}/H = ${currency(oneOnOnePlan.lowestTotal)} 起`;
 
-  if (product.id === "online-1v1-hourly") {
+  if (product.id === "hourly-1v1") {
     return [
       `前置先上「${prerequisite.name}」（${getProductKind(prerequisite)}），先用 ${prerequisite.hours} 把全科框架/阶段目标跑完；阶段目标：${targetAfter}。`,
       `上完前置课后做阶段模考或全真模考，核对听说读写小分；当前建议重点看：${focus}。`,
@@ -473,12 +477,8 @@ function buildLearningPath(product, preferences, diagnosisResult, oneOnOnePlan) 
   ];
 }
 
-function formatHourlyTierTable() {
-  return hourlyPriceTiers.map((tier) => `${tier.label}：${currency(tier.price)}/H`).join("；");
-}
-
 function buildMeta(product, oneOnOnePlan) {
-  const lowestPrice = product.id === "online-1v1-hourly"
+  const lowestPrice = product.id === "hourly-1v1"
     ? `${oneOnOnePlan.band} 档最低 ${currency(oneOnOnePlan.hourlyLowest)}/H（${formatHourlyTierTable()}）`
     : currency(product.lowestPrice);
 
@@ -530,7 +530,7 @@ function renderProducts(preferences) {
     .slice(0, 4);
 
   results.innerHTML = "";
-  summary.textContent = `当前 ${preferences.currentScore.toFixed(1)} 分，目标 ${preferences.targetScore.toFixed(1)} 分，偏好${deliveryLabels[preferences.delivery]}；系统不按备考时间匹配，优先看总分差、小分短板和课程形态。`;
+  summary.textContent = `当前 ${preferences.currentScore.toFixed(1)} 分，目标 ${preferences.targetScore.toFixed(1)} 分，偏好${deliveryLabels[preferences.delivery]}；系统不按时间硬匹配，优先看总分差、小分短板和课程形态。`;
   renderDiagnosis(preferences, diagnosisResult, oneOnOnePlan);
 
   rankedProducts.forEach((product) => {
